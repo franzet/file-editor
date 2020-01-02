@@ -1,109 +1,92 @@
 package com.franzet.maven.fileeditor;
 
+import org.apache.commons.io.FileUtils;
+import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
+import org.codehaus.plexus.util.StringUtils;
 
 import java.io.*;
 import java.net.URL;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 
 class ChangeLineInFile {
 
-	void changeALineInATextFile(File file, String newLine, int lineNumber) throws MojoFailureException {
-		FileOutputStream out = null;
-		try {
-			out = new FileOutputStream(file) ;
-			OutputStreamWriter writer = new OutputStreamWriter(out, Charset.forName("UTF-8"));
-			String content = readFile(file);
-			String editedContent = editLineInContent(content, newLine, lineNumber);
-			writer.write(editedContent);
-		} catch (IOException e) {
-			throw new MojoFailureException("Unable to save properties to file " + file.getAbsolutePath() + ": " + e.getMessage(), e);
-		} finally {
-			if (out != null) {
-				try {
-					out.close();
-				} catch (Exception e) {
-					// Ignore
-				}
-			}
-		}
-	}
+    void byVariable(File file, String[] props) throws MojoExecutionException, MojoFailureException {
+        try {
+            String filePath = file.getAbsolutePath();
+            List<String> lines = Files.readAllLines(Paths.get(filePath), StandardCharsets.UTF_8);
+            List<String> copyLines = new ArrayList<>(lines);
+            for (String holders : props) {
+                String[] params = holders.split(":");
+                String name = params[0];
+                String newValue = params[1];
+                for(int i=0; i<copyLines.size(); i++) {
+                    String line = lines.get(i);
+                    int nameIndex = line.indexOf(name);
+                    if (nameIndex > 0) {
+                        int end = nameIndex + name.length();
+                        String prefix = line.substring(0, end);
+                        String suffix = line.substring(end + 1);
+                        int equalsIndex = suffix.indexOf("=");
+                        if (equalsIndex > -1) {
+                            String newLine = prefix + " = " + newValue;
+                            if(line.endsWith(";")){
+                                newLine = newLine+";";
+                            }
+                            lines.set(i, newLine);
+                            break;
+                        }
+                    }
+                }
+            }
 
-	private static int numberOfLinesInFile(String content) {
-		int numberOfLines = 0;
-		int index = 0;
-		int lastIndex = 0;
-		lastIndex = content.length() - 1;
-		while (true) {
-			if (content.charAt(index) == '\n') {
-				numberOfLines++;
-			}
-			if (index == lastIndex) {
-				numberOfLines = numberOfLines + 1;
-				break;
-			}
-			index++;
-		}
-		return numberOfLines;
-	}
+            // Re-write
+            writeListToFile(filePath, lines);
 
-	private static String[] turnFileIntoArrayOfStrings(String content, int lines) {
-		String[] array = new String[lines];
-		int index = 0;
-		int tempInt = 0;
-		int startIndext = 0;
-		int lastIndex = content.length() - 1;
-		while (true) {
-			if (content.charAt(index) == '\n') {
-				tempInt++;
-				String temp2 = "";
-				for (int i = 0; i < index - startIndext; i++) {
-					temp2 += content.charAt(startIndext + i);
-				}
-				startIndext = index;
-				array[tempInt - 1] = temp2;
+        } catch (NumberFormatException e) {
+            throw new MojoFailureException("First param is not a number " + e.getMessage());
+        } catch (IOException io) {
+            throw new MojoFailureException("File not found " + io.getMessage());
+        } catch (Exception ex) {
+            throw new MojoExecutionException("Error by execute plugin " + ex.getMessage(), ex);
+        }
+    }
 
-			}
-			if (index == lastIndex) {
-				tempInt++;
-				String temp2 = "";
-				for (int i = 0; i < index - startIndext + 1; i++) {
-					temp2 += content.charAt(startIndext + i);
-				}
-				array[tempInt - 1] = temp2;
-				break;
-			}
-			index++;
-		}
+    void byLine(File file, String[] props) throws MojoExecutionException, MojoFailureException {
+        try {
+            String filePath = file.getAbsolutePath();
+            List<String> lines = Files.readAllLines(Paths.get(filePath), StandardCharsets.UTF_8);
+            for (String holders : props) {
+                String[] params = holders.split(":");
+                int nr = Integer.valueOf(params[0]);
+                String newLine = params[1];
+                lines.set(nr, newLine);
+            }
 
-		return array;
-	}
+            // Re-write
+            writeListToFile(filePath, lines);
 
-	private static String editLineInContent(String content, String newLine, int line) {
-		int lineNumber = 0;
-		lineNumber = numberOfLinesInFile(content);
-		String[] lines = turnFileIntoArrayOfStrings(content, lineNumber);
-		if (line != 1) {
-			lines[line - 1] = "\n" + newLine;
-		} else {
-			lines[line - 1] = newLine;
-		}
-		StringBuilder buffer = new StringBuilder();
-		for (int i = 0; i < lineNumber; i++) {
-			buffer.append(lines[i]);
-		}
-		return buffer.toString();
-	}
+        } catch (NumberFormatException e) {
+            throw new MojoFailureException("First param is not a number " + e.getMessage());
+        } catch (IOException io) {
+            throw new MojoFailureException("File not found " + io.getMessage());
+        } catch (Exception ex) {
+            throw new MojoExecutionException("Error by execute plugin " + ex.getMessage(), ex);
+        }
+    }
 
-	private static String readFile(File file) throws IOException {
-		//File is found
-		System.out.println("File Found : " + file.exists());
 
-		//Read File Content
-		String content = new String(Files.readAllBytes(file.toPath()));
-		return content;
-	}
-
+    private void writeListToFile(String fileName, List<String> lines) throws IOException {
+        FileWriter writer = new FileWriter(fileName);
+        for (String str : lines) {
+            writer.write(str + System.lineSeparator());
+        }
+        writer.close();
+    }
 
 }

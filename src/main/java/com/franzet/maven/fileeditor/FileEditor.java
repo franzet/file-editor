@@ -1,9 +1,6 @@
 package com.franzet.maven.fileeditor;
 
 import java.io.*;
-import java.nio.charset.Charset;
-import java.util.Enumeration;
-import java.util.Map;
 import java.util.Properties;
 
 import org.apache.maven.plugin.AbstractMojo;
@@ -12,6 +9,7 @@ import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
+import org.codehaus.plexus.util.StringUtils;
 
 /**
  * Create a Java File Editor
@@ -48,29 +46,28 @@ public class FileEditor extends AbstractMojo {
 	/**
 	 * Create intermediate directories if necessary (defaults to true)
 	 */
-	@Parameter(property = "createDirectory", defaultValue = "true") private boolean createDirectory;
+	@Parameter(property = "createDirectory", defaultValue = "true")
+    private boolean createDirectory;
 
-	public void execute() throws MojoExecutionException, MojoFailureException {
-		File finalFile = new File(outputDirectory, filename).getAbsoluteFile();
-		String finalFilename = finalFile.getAbsolutePath();
-		File finalDirectory = finalFile.getParentFile();
-		String finalDirectoryName = finalDirectory.getAbsolutePath();
+    public void execute() throws MojoExecutionException, MojoFailureException {
+        File finalFile = new File(outputDirectory, filename).getAbsoluteFile();
+        String finalFilename = finalFile.getAbsolutePath();
+        File finalDirectory = finalFile.getParentFile();
+        String finalDirectoryName = finalDirectory.getAbsolutePath();
 
-		if (!finalDirectory.exists()) {
-			getLog().info("Creating directory " + finalDirectoryName);
-			finalDirectory.mkdirs();
-		}
-		getLog().info("Saving properties to file " + finalFilename);
-		FileOutputStream out = null;
-		ChangeLineInFile changeFile = new ChangeLineInFile();
-		Enumeration eProps = properties.propertyNames();
-		while (eProps.hasMoreElements()) {
-			String key = (String) eProps.nextElement();
-			String newLineContent = properties.getProperty(key);
-			int lineToBeEdited = Integer.valueOf(key);
-			changeFile.changeALineInATextFile(finalFile, newLineContent, lineToBeEdited);
-		}
+        if (!finalDirectory.exists()) {
+            getLog().info("Creating directory " + finalDirectoryName);
+            finalDirectory.mkdirs();
+        }
+        getLog().info("Saving properties to file " + finalFilename);
+        ChangeLineInFile changeFile = new ChangeLineInFile();
 
-	}
+        if (StringUtils.equals(typ, "line")) {
+            changeFile.byLine(finalFile, props);
+        }
+        if(StringUtils.equals(typ, "variable")){
+            changeFile.byVariable(finalFile, props);
+        }
+    }
 
 }
